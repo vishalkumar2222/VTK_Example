@@ -30,3 +30,12 @@
 *.exe
 *.out
 *.app
+
+x64/
+vkt_example/
+/build
+/.vscode
+/docs
+*.sh
+.vscode
+

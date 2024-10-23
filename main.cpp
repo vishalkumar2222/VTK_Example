@@ -17,6 +17,7 @@ VTK_MODULE_INIT(vtkRenderingContextOpenGL2)
 #include <vtkPolyDataMapper.h>
 #include <vtkRenderWindow.h>
 #include <vtkRenderWindowInteractor.h>
+#include <vtkInteractorStyleTrackballCamera.h>
 #include <vtkRenderer.h>
 #include <vtkOBJReader.h>
 #include <vtkPNGReader.h>
@@ -66,6 +67,9 @@ int main(int, char* [])
     vtkNew<vtkRenderWindowInteractor> iren;
     iren->SetRenderWindow(renWin);
     renderer->SetBackground(1.0, 1.0, 1.0); // Background color dark blue
+
+	vtkSmartPointer< vtkInteractorStyleTrackballCamera> style = vtkSmartPointer< vtkInteractorStyleTrackballCamera>::New();
+	iren->SetInteractorStyle(style);
 
 	//vtkSmartPointer<vtkLight> pointLight = vtkSmartPointer<vtkLight>::New();
 	//pointLight->SetFocalPoint(0, 0, 0);

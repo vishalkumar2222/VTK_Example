@@ -18,76 +18,80 @@ VTK_MODULE_INIT(vtkRenderingContextOpenGL2)
 #include <vtkRenderWindow.h>
 #include <vtkRenderWindowInteractor.h>
 #include <vtkRenderer.h>
+#include <vtkOBJReader.h>
+#include <vtkPNGReader.h>
+#include <vtkTexture.h>
+#include <vtkLight.h>
 
-#include <array>
+#include <vector>
 
 int main(int, char* [])
 {
-    vtkNew<vtkNamedColors> colors;
 
-    std::array<std::array<double, 3>, 8> pts = { {{{0, 0, 0}},
-                                                 {{1, 0, 0}},
-                                                 {{1, 1, 0}},
-                                                 {{0, 1, 0}},
-                                                 {{0, 0, 1}},
-                                                 {{1, 0, 1}},
-                                                 {{1, 1, 1}},
-                                                 {{0, 1, 1}}} };
-    // The ordering of the corner points on each face.
-    std::array<std::array<vtkIdType, 4>, 6> ordering = { {{{0, 3, 2, 1}},
-                                                         {{4, 5, 6, 7}},
-                                                         {{0, 1, 5, 4}},
-                                                         {{1, 2, 6, 5}},
-                                                         {{2, 3, 7, 6}},
-                                                         {{3, 0, 4, 7}}} };
+	std::vector<std::string> obj_filenames = { "dependencies/media/bunny.obj", "dependencies/media/cube.obj", "dependencies/media/plane.obj" };
+	std::vector<std::string> texture_filenames = { "dependencies/media/metal.png", "dependencies/media/crate.png", "dependencies/media/wood.png" };
+	std::vector<std::vector<float>> translations = { {0, 0, 2}, {1, 1, 1}, {0, 0, 0} };
+	std::vector<std::vector<float>> scales = { {7.0, 7.0, 7.0}, {0.5, 0.5, 0.5}, {10, 10, 10} };
 
-    // We'll create the building blocks of polydata including data attributes.
-    vtkNew<vtkPolyData> cube;
-    vtkNew<vtkPoints> points;
-    vtkNew<vtkCellArray> polys;
-    vtkNew<vtkFloatArray> scalars;
+	std::vector<vtkSmartPointer<vtkPolyData>> polydatas;
+	std::vector<vtkSmartPointer<vtkTexture>> textures;
 
-    // Load the point, cell, and data attributes.
-    for (auto i = 0ul; i < pts.size(); ++i)
-    {
-        points->InsertPoint(i, pts[i].data());
-        scalars->InsertTuple1(i, i);
-    }
-    for (auto&& i : ordering)
-    {
-        polys->InsertNextCell(vtkIdType(i.size()), i.data());
+    for (auto&& obj_filename : obj_filenames) {
+		vtkSmartPointer<vtkOBJReader> reader = vtkSmartPointer<vtkOBJReader>::New();
+		reader->SetFileName(obj_filename.c_str());
+		reader->Update();
+		polydatas.push_back(reader->GetOutput());
     }
 
-    // We now assign the pieces to the vtkPolyData.
-    cube->SetPoints(points);
-    cube->SetPolys(polys);
-    cube->GetPointData()->SetScalars(scalars);
-
-    // Now we'll look at it.
-    vtkNew<vtkPolyDataMapper> cubeMapper;
-    cubeMapper->SetInputData(cube);
-    cubeMapper->SetScalarRange(cube->GetScalarRange());
-    vtkNew<vtkActor> cubeActor;
-    cubeActor->SetMapper(cubeMapper);
-
-    // The usual rendering stuff.
-    vtkNew<vtkCamera> camera;
-    camera->SetPosition(1, 1, 1);
-    camera->SetFocalPoint(0, 0, 0);
+	for (auto&& filename : texture_filenames) {
+		vtkSmartPointer<vtkPNGReader> reader = vtkSmartPointer<vtkPNGReader>::New();
+		reader->SetFileName(filename.c_str());
+		reader->Update();
+		vtkSmartPointer<vtkTexture> texture = vtkSmartPointer<vtkTexture>::New();
+		texture->SetInputConnection(reader->GetOutputPort());
+		textures.push_back(texture);
+	}
+	
+	if (polydatas.size() == 0) {
+		std::cerr << "No polydatas loaded" << std::endl;
+		return EXIT_FAILURE;
+	}
+	std::cout << "Loaded " << polydatas.size() << " polydatas" << std::endl;
 
     vtkNew<vtkRenderer> renderer;
     vtkNew<vtkRenderWindow> renWin;
     renWin->AddRenderer(renderer);
-    renWin->SetWindowName("Cube");
+    renWin->SetWindowName("GPU Renderer");
 
     vtkNew<vtkRenderWindowInteractor> iren;
     iren->SetRenderWindow(renWin);
+    renderer->SetBackground(1.0, 1.0, 1.0); // Background color dark blue
 
-    renderer->AddActor(cubeActor);
-    renderer->SetActiveCamera(camera);
+	//vtkSmartPointer<vtkLight> pointLight = vtkSmartPointer<vtkLight>::New();
+	//pointLight->SetFocalPoint(0, 0, 0);
+	//pointLight->SetPosition(0, 0, 0);
+	//pointLight->SetColor(1.0, 1.0, 1.0);
+	//pointLight->SetIntensity(1.0);
+	//renderer->AddLight(pointLight);
+
+	for (size_t i = 0; i < polydatas.size(); i++) {
+
+		vtkNew<vtkPolyDataMapper> mapper;
+		mapper->SetInputData(polydatas[i]);
+
+		// Create an actor
+		vtkNew<vtkActor> actor;
+		actor->SetMapper(mapper);
+		actor->SetPosition(translations[i][0], translations[i][1], translations[i][2]);
+		actor->SetScale(scales[i][0], scales[i][1], scales[i][2]);
+
+		if (i < textures.size()) {
+			actor->SetTexture(textures[i]);
+		}
+		renderer->AddActor(actor);
+	}
+
     renderer->ResetCamera();
-    renderer->SetBackground(colors->GetColor3d("Cornsilk").GetData());
-
     renWin->SetSize(600, 600);
 
     // interact with data

@@ -38,4 +38,4 @@ vtk_example/
 /docs
 *.sh
 .vscode
-
+.vs
